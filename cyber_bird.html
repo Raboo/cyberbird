@@ -1,0 +1,647 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cyberpunk Flappy Bird - High Score Added</title>
+    <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #050510;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+            font-family: 'VT323', monospace;
+            color: #fff;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            color: #ff00ff;
+            text-shadow: 0 0 5px #ff00ff, 0 0 10px #ff00ff;
+            font-size: 60px;
+            letter-spacing: 5px;
+            text-transform: uppercase;
+            animation: flicker 0.15s infinite alternate;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 1; text-shadow: 0 0 5px #ff00ff; }
+            50% { opacity: 0.9; text-shadow: 0 0 15px #bc13fe; }
+            100% { opacity: 1; text-shadow: 0 0 5px #ff00ff; }
+        }
+
+        #game-container {
+            position: relative;
+            display: inline-block;
+            border: 4px solid #0ff;
+            box-shadow: 0 0 20px rgba(0, 255, 255, 0.2), 0 0 60px rgba(255, 0, 255, 0.15);
+            border-radius: 10px;
+            overflow: hidden;
+        }
+
+        canvas {
+            display: block;
+            background-color: #02020a;
+            cursor: crosshair;
+        }
+
+        .crt-overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 10;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 6px 100%;
+            box-shadow: inset 0 0 80px rgba(0,0,0,0.9);
+            animation: flicker 0.1s infinite;
+        }
+
+        @keyframes flicker {
+            0% { opacity: 0.98; }
+            100% { opacity: 1; }
+        }
+
+        .instructions {
+            margin-top: 15px;
+            color: #0ff;
+            text-shadow: 0 0 5px #0ff;
+            font-size: 24px;
+            animation: pulse 1.5s infinite;
+            text-align: center;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+
+        .glitch-text {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 40px;
+            font-weight: bold;
+            text-align: center;
+            color: #fff;
+            z-index: 5;
+            pointer-events: none;
+        }
+
+        .hidden { display: none !important; }
+
+        /* Start Overlay */
+        #startOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 200;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: #0ff;
+            font-family: 'VT323', monospace;
+        }
+        
+        #startBtn {
+            margin-top: 20px;
+            padding: 15px 30px;
+            font-family: 'VT323', monospace;
+            font-size: 30px;
+            background: transparent;
+            color: #ff00ff;
+            border: 2px solid #ff00ff;
+            box-shadow: 0 0 10px #ff00ff;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+        }
+
+        #startBtn:hover {
+            background: #ff00ff;
+            color: #000;
+            box-shadow: 0 0 20px #ff00ff, 0 0 40px #ff00ff;
+        }
+
+        /* HUD Elements */
+        #scoreBoard {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            font-size: 40px;
+            color: #00ff00;
+            text-shadow: 0 0 5px #00ff00;
+            z-index: 10;
+            font-weight: bold;
+        }
+
+        #highScoreDisplay {
+            position: absolute;
+            top: 60px; /* Below Score */
+            right: 20px;
+            font-size: 20px;
+            color: #00ffff;
+            text-shadow: 0 0 3px #00ffff;
+            z-index: 10;
+            text-align: right;
+        }
+        
+        .label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+    </style>
+</head>
+<body>
+
+    <h1>CYBER BIRD</h1>
+    
+    <div id="game-container">
+        <canvas id="birdCanvas" width="320" height="480"></canvas>
+        <div class="crt-overlay"></div>
+        
+        <!-- Score & High Score HUD -->
+        <div id="scoreBoard">0</div>
+        <div id="highScoreDisplay">
+            <div class="label">BEST</div>
+            <div id="bestScoreValue">0</div>
+        </div>
+        
+        <!-- UI Overlays -->
+        <div id="getReadyText" class="glitch-text" style="color: #00ffff; text-shadow: 0 0 10px #00ffff;">
+            SYSTEM READY<br><span style="font-size: 20px; color: #fff;">[ CLICK TO INITIATE ]</span>
+        </div>
+        
+        <div id="gameOverText" class="glitch-text hidden" style="color: #ff0000; text-shadow: 0 0 10px #ff0000;">
+            CONNECTION LOST<br><span style="font-size: 20px; color: #fff;">SCORE: <span id="finalScore">0</span></span><br>
+            <span style="font-size: 20px; color: #00ffff; margin-top: 10px; display: block;">BEST: <span id="finalBestScore">0</span></span><br>
+            <span style="font-size: 20px; color: #00ff00; margin-top: 10px; display: block;">[ CLICK TO REBOOT ]</span>
+        </div>
+    </div>
+
+    <div class="instructions">
+        CONTROLS: SPACEBAR or MOUSE CLICK
+    </div>
+
+    <div id="startOverlay">
+        <div style="font-size: 30px; margin-bottom: 10px;">SYSTEM STANDBY</div>
+        <div style="font-size: 20px; color: #aaa; margin-bottom: 20px;">HEADPHONES RECOMMENDED</div>
+        <button id="startBtn">INITIALIZE AUDIO & GAME</button>
+    </div>
+
+    <script>
+        // --- AUDIO SYSTEM ---
+        const AudioSys = {
+            ctx: null,
+            
+            init: function() {
+                if (!this.ctx) {
+                    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                }
+                if (this.ctx.state === 'suspended') {
+                    this.ctx.resume();
+                }
+            },
+
+            playJump: function() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gainNode = this.ctx.createGain();
+                osc.type = 'square'; 
+                osc.frequency.setValueAtTime(150, this.ctx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(600, this.ctx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.1);
+                osc.connect(gainNode);
+                gainNode.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.15);
+            },
+
+            playScore: function() {
+                if (!this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gainNode = this.ctx.createGain();
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(880, this.ctx.currentTime);
+                osc.frequency.linearRampToValueAtTime(1108, this.ctx.currentTime + 0.1);
+                gainNode.gain.setValueAtTime(0.1, this.ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.3);
+                osc.connect(gainNode);
+                gainNode.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + 0.35);
+            },
+
+            playCrash: function() {
+                if (!this.ctx) return;
+                const bufferSize = this.ctx.sampleRate * 0.5;
+                const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
+                const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) {
+                    data[i] = Math.random() * 2 - 1;
+                }
+                const noise = this.ctx.createBufferSource();
+                noise.buffer = buffer;
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.value = 800;
+                const distortion = this.ctx.createWaveShaper();
+                distortion.curve = this.makeDistortionCurve(400);
+                distortion.oversample = '4x';
+                const gainNode = this.ctx.createGain();
+                gainNode.gain.setValueAtTime(0.3, this.ctx.currentTime);
+                gainNode.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 0.5);
+                noise.connect(filter);
+                filter.connect(distortion);
+                distortion.connect(gainNode);
+                gainNode.connect(this.ctx.destination);
+                noise.start();
+                noise.stop(this.ctx.currentTime + 0.5);
+            },
+            
+            makeDistortionCurve: function(amount) {
+                const k = typeof amount === 'number' ? amount : 50;
+                const n_samples = 44100;
+                const curve = new Float32Array(n_samples);
+                const deg = Math.PI / 180;
+                for (let i = 0; i < n_samples; ++i) {
+                    const x = i * 2 / n_samples - 1;
+                    curve[i] = (3 + k) * x * 20 * deg / (Math.PI + k * Math.abs(x));
+                }
+                return curve;
+            }
+        };
+
+        // --- GAME LOGIC ---
+
+        const canvas = document.getElementById("birdCanvas");
+        const ctx = canvas.getContext("2d");
+        const scoreBoard = document.getElementById("scoreBoard");
+        const bestScoreValueDisplay = document.getElementById("bestScoreValue");
+        const getReadyText = document.getElementById("getReadyText");
+        const gameOverText = document.getElementById("gameOverText");
+        const finalScoreDisplay = document.getElementById("finalScore");
+        const finalBestScoreDisplay = document.getElementById("finalBestScore");
+        const startOverlay = document.getElementById("startOverlay");
+        const startBtn = document.getElementById("startBtn");
+
+        let frames = 0;
+        let score = 0;
+        // Load High Score immediately
+        let bestScore = localStorage.getItem('cyberHighScore') || 0;
+        
+        // Set initial High Score display
+        bestScoreValueDisplay.innerText = bestScore;
+
+        const physics = {
+            gravity: 0.18,
+            jump: 4.2,
+            speed: 2
+        };
+
+        let gameState = {
+            current: 0,
+            getReady: 0,
+            game: 1,
+            over: 2
+        };
+
+        const bg = {
+            x: 0,
+            draw: function() {
+                const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+                gradient.addColorStop(0, "#05051a");
+                gradient.addColorStop(1, "#1a051a");
+                ctx.fillStyle = gradient;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                ctx.strokeStyle = "rgba(0, 255, 255, 0.2)";
+                ctx.lineWidth = 1;
+                ctx.shadowBlur = 0;
+
+                const centerX = canvas.width / 2;
+                for (let i = -10; i <= 10; i++) {
+                    ctx.beginPath();
+                    let x1 = centerX + (i * 20); 
+                    let x2 = centerX + (i * 80); 
+                    ctx.moveTo(x1, 0);
+                    ctx.lineTo(x2, canvas.height);
+                    ctx.stroke();
+                }
+
+                let gridSpacing = 40;
+                let offset = (frames * this.dx) % gridSpacing;
+                
+                for (let y = offset; y < canvas.height; y += gridSpacing) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                    ctx.stroke();
+                }
+                
+                if (Math.random() > 0.98) {
+                    ctx.fillStyle = "rgba(255, 0, 255, 0.1)";
+                    ctx.fillRect(0, Math.random() * canvas.height, canvas.width, 5);
+                }
+            },
+            dx: physics.speed
+        };
+
+        const fg = {
+            h: 80,
+            x: 0,
+            dx: physics.speed,
+            draw: function() {
+                ctx.fillStyle = "#000";
+                ctx.fillRect(0, canvas.height - this.h, canvas.width, this.h);
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "#00ffff";
+                ctx.fillStyle = "#00ffff";
+                ctx.fillRect(0, canvas.height - this.h, canvas.width, 4);
+                ctx.shadowBlur = 0;
+                ctx.strokeStyle = "#008888";
+                ctx.beginPath();
+                ctx.moveTo(0, canvas.height - this.h + 10);
+                ctx.lineTo(canvas.width, canvas.height - this.h + 10);
+                ctx.stroke();
+                ctx.fillStyle = "#00aaaa";
+                let patternOffset = this.x % 20;
+                for (let i = patternOffset; i < canvas.width; i += 20) {
+                    ctx.fillRect(i, canvas.height - this.h + 20, 4, 4);
+                }
+            },
+            update: function() {
+                if (gameState.current === gameState.game) {
+                    this.x = (this.x - this.dx) % 20;
+                }
+            }
+        };
+
+        const bird = {
+            x: 50,
+            y: 150,
+            radius: 12,
+            speed: 0,
+            gravity: physics.gravity,
+            jump: physics.jump,
+            rotation: 0,
+            
+            draw: function() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "#00ff00";
+                ctx.fillStyle = "#000";
+                ctx.strokeStyle = "#00ff00";
+                ctx.lineWidth = 3;
+
+                ctx.beginPath();
+                ctx.moveTo(10, 0);
+                ctx.lineTo(-10, 8);
+                ctx.lineTo(-5, 0);
+                ctx.lineTo(-10, -8);
+                ctx.closePath();
+                ctx.fill();
+                ctx.stroke();
+
+                ctx.fillStyle = "#00ff00";
+                ctx.fillRect(-14, -2, 4, 4);
+
+                ctx.restore();
+            },
+
+            flap: function() {
+                this.speed = -this.jump;
+                this.x += 2;
+                AudioSys.playJump();
+            },
+
+            update: function() {
+                if (gameState.current === gameState.getReady) {
+                    this.y = 150 + Math.cos(frames/10) * 5;
+                    this.rotation = 0;
+                } 
+                else if (gameState.current === gameState.game) {
+                    this.speed += this.gravity;
+                    this.y += this.speed;
+
+                    if (this.y + this.radius >= canvas.height - fg.h) {
+                        this.y = canvas.height - fg.h - this.radius;
+                        endGame();
+                    }
+                    
+                    if (this.y - this.radius <= 0) {
+                        this.y = this.radius;
+                        this.speed = 0;
+                    }
+                }
+            },
+            
+            reset: function() {
+                this.speed = 0;
+                this.rotation = 0;
+                this.y = 150;
+                this.x = 50;
+            }
+        };
+
+        const pipes = {
+            position: [],
+            w: 50,
+            h: 400,
+            gap: 140,
+            dx: physics.speed,
+            maxYPos: -180,
+
+            draw: function() {
+                for (let i = 0; i < this.position.length; i++) {
+                    let p = this.position[i];
+                    let topY = p.y;
+                    let bottomY = p.y + this.h + this.gap;
+
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = "#ff00ff";
+                    ctx.fillStyle = "rgba(20, 0, 20, 0.9)";
+                    ctx.strokeStyle = "#ff00ff";
+                    ctx.lineWidth = 3;
+
+                    ctx.fillRect(p.x, topY, this.w, this.h);
+                    ctx.strokeRect(p.x, topY, this.w, this.h);
+                    ctx.fillRect(p.x - 4, topY + this.h - 20, this.w + 8, 20);
+                    ctx.strokeRect(p.x - 4, topY + this.h - 20, this.w + 8, 20);
+
+                    ctx.fillRect(p.x, bottomY, this.w, this.h);
+                    ctx.strokeRect(p.x, bottomY, this.w, this.h);
+                    ctx.fillRect(p.x - 4, bottomY, this.w + 8, 20);
+                    ctx.strokeRect(p.x - 4, bottomY, this.w + 8, 20);
+
+                    ctx.strokeStyle = "#bc13fe";
+                    ctx.lineWidth = 1;
+                    ctx.shadowBlur = 0;
+                    for(let k = bottomY + 10; k < canvas.height - fg.h; k+=20) {
+                        ctx.beginPath();
+                        ctx.moveTo(p.x + 10, k);
+                        ctx.lineTo(p.x + this.w - 10, k);
+                        ctx.stroke();
+                    }
+                }
+            },
+
+            update: function() {
+                if (gameState.current !== gameState.game) return;
+
+                if (frames % 90 === 0) {
+                    this.position.push({
+                        x: canvas.width,
+                        y: this.maxYPos * (Math.random() + 1.5),
+                        passed: false
+                    });
+                }
+
+                for (let i = 0; i < this.position.length; i++) {
+                    let p = this.position[i];
+                    p.x -= this.dx;
+
+                    let bottomPipeY = p.y + this.h + this.gap;
+                    
+                    if (bird.x + bird.radius > p.x && bird.x - bird.radius < p.x + this.w) {
+                        if (bird.y - bird.radius < p.y + this.h || bird.y + bird.radius > bottomPipeY) {
+                            endGame();
+                        }
+                    }
+
+                    if (p.x + this.w < bird.x && !p.passed) {
+                        score++;
+                        scoreBoard.innerText = score;
+                        AudioSys.playScore();
+                        p.passed = true;
+                    }
+
+                    if (p.x + this.w <= 0) {
+                        this.position.shift();
+                        i--;
+                    }
+                }
+            },
+
+            reset: function() {
+                this.position = [];
+            }
+        };
+
+        function endGame() {
+            gameState.current = gameState.over;
+            
+            // Update High Score if current score is better
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('cyberHighScore', bestScore);
+                bestScoreValueDisplay.innerText = bestScore; // Update HUD
+            }
+            
+            AudioSys.playCrash();
+            
+            finalScoreDisplay.innerText = score;
+            finalBestScoreDisplay.innerText = bestScore; // Update Game Over Screen
+            
+            scoreBoard.classList.add('hidden');
+            bestScoreValueDisplay.parentElement.classList.add('hidden'); // Hide HUD
+            gameOverText.classList.remove('hidden');
+        }
+
+        function resetGame() {
+            bird.reset();
+            pipes.reset();
+            score = 0;
+            frames = 0;
+            gameState.current = gameState.getReady;
+            
+            // UI Updates
+            scoreBoard.innerText = score;
+            gameOverText.classList.add('hidden');
+            getReadyText.classList.remove('hidden');
+            
+            // Show Score HUD again
+            scoreBoard.classList.remove('hidden');
+            bestScoreValueDisplay.parentElement.classList.remove('hidden');
+        }
+
+        function loop() {
+            bird.update();
+            fg.update();
+            pipes.update();
+            bg.draw();
+            pipes.draw();
+            fg.draw();
+            bird.draw();
+
+            if (gameState.current === gameState.game) {
+                frames++;
+            }
+
+            requestAnimationFrame(loop);
+        }
+
+        function handleInput(e) {
+            if (e.type === 'keydown' && e.code === 'Space') {
+                e.preventDefault();
+            }
+
+            if (gameState.current === gameState.getReady) {
+                gameState.current = gameState.game;
+                bird.flap();
+                getReadyText.classList.add('hidden');
+            } 
+            else if (gameState.current === gameState.game) {
+                bird.flap();
+            } 
+            else if (gameState.current === gameState.over) {
+                resetGame();
+            }
+        }
+
+        // --- STARTUP LOGIC ---
+        
+        bird.reset();
+        pipes.reset();
+
+        startBtn.addEventListener("click", () => {
+            startOverlay.classList.add('hidden');
+            AudioSys.init();
+            
+            setTimeout(() => {
+                loop();
+                gameState.current = gameState.getReady; 
+            }, 50);
+        });
+
+        canvas.addEventListener("mousedown", handleInput);
+        window.addEventListener("keydown", function(e) {
+            if (e.code === "Space") {
+                handleInput(e);
+            }
+        });
+
+    </script>
+</body>
+</html>
+
